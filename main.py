@@ -328,7 +328,6 @@ class WaterMark(tkinter.Tk):
             image.save(file_path, dpi=(300, 300))  # Set the dpi to match the desired resolution
             print("Image saved successfully!")
 
-
     def program(self):
         window_params = self.window_position(self.main_window_size)
         self.creating_geometry_root_window(window_params[0], window_params[1])
