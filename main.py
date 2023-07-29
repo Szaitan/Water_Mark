@@ -1,13 +1,14 @@
 import tkinter
 import os
+import io
 from tkinter import filedialog
-
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageDraw, ImageGrab
 
 
 class WaterMark(tkinter.Tk):
     def __init__(self):
         super().__init__()
+        self.ow_save_image = None
         self.mark_entry = None
         self.mark_label = None
         self.apply_button = None
@@ -33,7 +34,7 @@ class WaterMark(tkinter.Tk):
 
         self.title("Water Mark Creator")
         self.main_window_size = (700, 670)
-        self.option_window_size = (200, 70)
+        self.option_window_size = (200, 100)
         self.waterm_option_window_size = (610, 125)
         self.welcome_font = ("Calibre lights", 14, 'bold')
         self.pick_font = ("Calibre body", 12, 'bold')
@@ -106,10 +107,10 @@ class WaterMark(tkinter.Tk):
         # First we create frame in our tkinter and place it using grid
         self.main_frame = tkinter.Frame(self)
         self.main_frame.grid(row=1, column=0, columnspan=2)
-
         # Second we create canvas but in our new frame, position is new, so we start from row and column 0
         self.canvas_in_frame = tkinter.Canvas(self.main_frame, width=680, height=600)
         self.canvas_in_frame.grid(row=0, column=0)
+        self.canvas_in_frame.winfo_width()
         # Third we place a test image
         self.label_image = Image.open("images/test.jpg")
         self.label_photo = ImageTk.PhotoImage(self.label_image)
@@ -148,7 +149,6 @@ class WaterMark(tkinter.Tk):
         self.creating_geometry_window_option(position[0], position[1])
         self.option_window_widget.title("Option window")
         self.option_window_widget.config(bg=self.bg_color)
-        self.option_window_widget.attributes("-alpha", 1.0)
 
         self.ow_chose_image_button = tkinter.Button(self.option_window_widget, text="Chose image to place watermark",
                                                     command=self.chose_image_function)
@@ -157,6 +157,10 @@ class WaterMark(tkinter.Tk):
         self.ow_add_watermark_button = tkinter.Button(self.option_window_widget, text="Add water mark",
                                                       command=self.water_mark_window_options)
         self.ow_add_watermark_button.grid(row=1, column=0, pady=5)
+
+        self.ow_save_image = tkinter.Button(self.option_window_widget, text="Save image",
+                                            command=self.func_save_img_file)
+        self.ow_save_image.grid(row=2, column=0, pady=5)
 
     def water_mark_window_options(self):
         position = self.window_position(self.waterm_option_window_size)
@@ -252,7 +256,9 @@ class WaterMark(tkinter.Tk):
 
             self.canvas_in_frame.itemconfig(self.image, image=self.label_photo)
             self.canvas_in_frame.configure(scrollregion=self.canvas_in_frame.bbox("all"))
+
             self.option_window_widget.attributes('-topmost', 1)
+            self.option_window_widget.attributes('-topmost', 0)
             self.canvas_in_frame.itemconfig(self.text_canvas, text="")
 
             self.w_positions["Top-Mid"] = (int(self.label_image.width / 2), 0)
@@ -288,11 +294,40 @@ class WaterMark(tkinter.Tk):
 
         anchor_sign = self.my_NSWE_positions[position_to_find]
 
-        print(font, size, position, water_mark_input, anchor_sign)
-
         self.text_canvas = self.canvas_in_frame.create_text(position[0],
                                                             position[1], anchor=anchor_sign, font=(font, int(size)))
         self.canvas_in_frame.itemconfig(self.text_canvas, text=water_mark_input)
+
+    def func_save_img_file(self):
+        self.option_window_widget.destroy()
+        file_path = filedialog.asksaveasfilename(defaultextension=".jpg", filetypes=[("JPEG files", "*.jpg")])
+
+        if file_path:
+            # Get the bounding box of the canvas content
+            x_min, y_min, x_max, y_max = self.canvas_in_frame.bbox("all")
+
+            # Calculate the size of the image
+            image_width = x_max - x_min
+            image_height = y_max - y_min
+
+            # Create a new image with the same size as the canvas
+            image = Image.new("RGB", (image_width, image_height), "white")
+            draw = ImageDraw.Draw(image)
+
+            print(image_width, image_height)
+            # Draw the canvas content onto the image
+            ps_data = self.canvas_in_frame.postscript(colormode="color", x=x_min, y=y_min, width=image_width, height=image_height)
+            ps_image = Image.open(io.BytesIO(ps_data.encode("utf-8")))
+            print(ps_image.width, ps_image.height)
+
+            ps_image = ps_image.resize((image_width, image_height))
+
+            image.paste(ps_image, (0, 0))  # Paste the canvas content onto the background image
+
+            # Save the image
+            image.save(file_path, dpi=(300, 300))  # Set the dpi to match the desired resolution
+            print("Image saved successfully!")
+
 
     def program(self):
         window_params = self.window_position(self.main_window_size)
